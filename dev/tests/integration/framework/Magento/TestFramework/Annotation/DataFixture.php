@@ -9,6 +9,8 @@
  */
 namespace Magento\TestFramework\Annotation;
 
+use Magento\TestFramework\Helper\Bootstrap;
+
 class DataFixture
 {
     /**
@@ -22,6 +24,11 @@ class DataFixture
      * @var array
      */
     private $_appliedFixtures = [];
+
+    /**
+     * @var \Magento\TestFramework\Fixture\Manager
+     */
+    private $fixtureManager;
 
     /**
      * Constructor
@@ -115,6 +122,11 @@ class DataFixture
         $result = [];
         if (!empty($annotations['magentoDataFixture'])) {
             foreach ($annotations['magentoDataFixture'] as $fixture) {
+                if ($this->getFixtureObject($fixture) !== null) {
+                    $result[] = $fixture;
+                    continue;
+                }
+
                 if (strpos($fixture, '\\') !== false) {
                     // usage of a single directory separator symbol streamlines search across the source code
                     throw new \Magento\Framework\Exception\LocalizedException(
@@ -180,6 +192,24 @@ class DataFixture
     }
 
     /**
+     * @param string $fixtureName
+     * @return null|\Magento\TestFramework\Fixture\FixtureInterface
+     */
+    private function getFixtureObject(string $fixtureName)
+    {
+        try {
+            $fixture = Bootstrap::getInstance()->getObjectManager()->get($fixtureName);
+        } catch (\Exception $exception) {
+            return null;
+        }
+
+        if ($fixture instanceof \Magento\TestFramework\Fixture\FixtureInterface) {
+            return $fixture;
+        }
+        return null;
+    }
+
+    /**
      * Execute fixture scripts if any
      *
      * @param array $fixtures
@@ -187,8 +217,21 @@ class DataFixture
      */
     protected function _applyFixtures(array $fixtures)
     {
+        $this->fixtureManager = Bootstrap::getObjectManager()->create(\Magento\TestFramework\Fixture\Manager::class);
+        Bootstrap::getObjectManager()->addSharedInstance(
+            $this->fixtureManager,
+            \Magento\TestFramework\Fixture\Manager::class
+        );
+
         /* Execute fixture scripts */
         foreach ($fixtures as $oneFixture) {
+            $fixtureObject = $this->getFixtureObject($oneFixture);
+            if ($fixtureObject !== null) {
+                $fixtureObject->persist();
+                $this->fixtureManager->add(ltrim($oneFixture, '\\'), $fixtureObject);
+                continue;
+            }
+
             /* Skip already applied fixtures */
             if (in_array($oneFixture, $this->_appliedFixtures, true)) {
                 continue;
@@ -203,6 +246,9 @@ class DataFixture
      */
     protected function _revertFixtures()
     {
+        $this->fixtureManager->rollbackAll();
+        Bootstrap::getObjectManager()->removeSharedInstance(\Magento\TestFramework\Fixture\Manager::class);
+
         foreach ($this->_appliedFixtures as $fixture) {
             if (is_callable($fixture)) {
                 $fixture[1] .= 'Rollback';
