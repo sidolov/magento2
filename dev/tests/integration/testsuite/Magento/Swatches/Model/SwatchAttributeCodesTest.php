@@ -25,13 +25,18 @@ class SwatchAttributeCodesTest extends \PHPUnit\Framework\TestCase
 
     /**
      * @magentoDbIsolation enabled
-     * @magentoDataFixture Magento/Swatches/_files/swatch_attribute.php
+     * @magentoDataFixture Magento\Swatches\Fixtures\SwatchAttribute
      */
     public function testGetCodes()
     {
+        /** @var \Magento\TestFramework\Fixture\Manager $fixtureManager */
+        $fixtureManager = $this->objectManager->get(\Magento\TestFramework\Fixture\Manager::class);
+        $swatchFixture = $fixtureManager->get(\Magento\Swatches\Fixtures\SwatchAttribute::class);
+        $attributeCode = $swatchFixture->getData()->getAttribute()->getAttributeCode();
+
         $attribute = $this->objectManager
             ->create(\Magento\Catalog\Model\ResourceModel\Eav\Attribute::class)
-            ->load('color_swatch', 'attribute_code');
+            ->load($attributeCode, 'attribute_code');
         $expected = [
             $attribute->getAttributeId() => $attribute->getAttributeCode()
         ];

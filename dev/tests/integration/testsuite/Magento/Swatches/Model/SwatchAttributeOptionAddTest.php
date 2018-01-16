@@ -28,14 +28,19 @@ class SwatchAttributeOptionAddTest extends \PHPUnit\Framework\TestCase
     /**
      * @magentoAppArea adminhtml
      * @magentoDbIsolation enabled
-     * @magentoDataFixture Magento/Swatches/_files/swatch_attribute.php
+     * @magentoDataFixture Magento\Swatches\Fixtures\SwatchAttribute
      */
     public function testSwatchOptionAdd()
     {
+        /** @var \Magento\TestFramework\Fixture\Manager $fixtureManager */
+        $fixtureManager = $this->objectManager->get(\Magento\TestFramework\Fixture\Manager::class);
+        $swatchFixture = $fixtureManager->get(\Magento\Swatches\Fixtures\SwatchAttribute::class);
+        $attributeCode = $swatchFixture->getData()->getAttribute()->getAttributeCode();
+
         /** @var \Magento\Catalog\Api\Data\ProductAttributeInterface $attribute */
         $attribute = $this->objectManager
             ->create(\Magento\Catalog\Model\ResourceModel\Eav\Attribute::class)
-            ->load('color_swatch', 'attribute_code');
+            ->load($attributeCode, 'attribute_code');
         $optionsPerAttribute = 3;
 
         $data['options']['option'] = array_reduce(
