@@ -32,6 +32,7 @@ class ObjectManager extends \Magento\Framework\App\ObjectManager
         \Magento\Framework\ObjectManager\DefinitionInterface::class,
         \Magento\Framework\Session\Config::class,
         \Magento\Framework\ObjectManager\Config\Mapper\Dom::class,
+        \Magento\TestFramework\Fixture\Manager::class,
     ];
 
     /**

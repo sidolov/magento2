@@ -12,6 +12,8 @@
 
 namespace Magento\TestFramework\Annotation;
 
+use Magento\TestFramework\Helper\Bootstrap;
+
 class ApiDataFixture
 {
     /**
@@ -24,7 +26,12 @@ class ApiDataFixture
      *
      * @var array
      */
-    private $_appliedFixtures = [];
+    private $appliedFixtures = [];
+
+    /**
+     * @var \Magento\TestFramework\Fixture\Manager
+     */
+    private $fixtureManager;
 
     /**
      * Constructor
@@ -49,7 +56,7 @@ class ApiDataFixture
      */
     public function startTest(\PHPUnit\Framework\TestCase $test)
     {
-        \Magento\TestFramework\Helper\Bootstrap::getInstance()->reinitialize();
+        Bootstrap::getInstance()->reinitialize();
         /** Apply method level fixtures if thy are available, apply class level fixtures otherwise */
         $this->_applyFixtures($this->_getFixtures('method', $test) ?: $this->_getFixtures('class', $test));
     }
@@ -61,7 +68,7 @@ class ApiDataFixture
     {
         $this->_revertFixtures();
         /** @var $objectManager \Magento\TestFramework\ObjectManager */
-        $objectManager = \Magento\TestFramework\Helper\Bootstrap::getObjectManager();
+        $objectManager = Bootstrap::getObjectManager();
         $objectManager->get(\Magento\Customer\Model\Metadata\AttributeMetadataCache::class)->clean();
     }
 
@@ -79,6 +86,11 @@ class ApiDataFixture
         $result = [];
         if (!empty($annotations[$scope]['magentoApiDataFixture'])) {
             foreach ($annotations[$scope]['magentoApiDataFixture'] as $fixture) {
+                if ($this->getFixtureObject($fixture) !== null) {
+                    $result[] = $fixture;
+                    continue;
+                }
+
                 if (strpos($fixture, '\\') !== false) {
                     // usage of a single directory separator symbol streamlines search across the source code
                     throw new \Magento\Framework\Exception\LocalizedException(
@@ -114,7 +126,7 @@ class ApiDataFixture
             . (is_array($fixture) || is_scalar($fixture) ? json_encode($fixture) : 'callback')
             . ' fixture: ', PHP_EOL, $e;
         }
-        $this->_appliedFixtures[] = $fixture;
+        $this->appliedFixtures[] = $fixture;
     }
 
     /**
@@ -125,10 +137,23 @@ class ApiDataFixture
      */
     protected function _applyFixtures(array $fixtures)
     {
+        $this->fixtureManager = Bootstrap::getObjectManager()->create(\Magento\TestFramework\Fixture\Manager::class);
+        Bootstrap::getObjectManager()->addSharedInstance(
+            $this->fixtureManager,
+            \Magento\TestFramework\Fixture\Manager::class
+        );
+
         /* Execute fixture scripts */
         foreach ($fixtures as $oneFixture) {
+            $fixtureObject = $this->getFixtureObject($oneFixture);
+            if ($fixtureObject !== null) {
+                $fixtureObject->persist();
+                $this->fixtureManager->add(ltrim($oneFixture, '\\'), $fixtureObject);
+                continue;
+            }
+
             /* Skip already applied fixtures */
-            if (!in_array($oneFixture, $this->_appliedFixtures, true)) {
+            if (!in_array($oneFixture, $this->appliedFixtures, true)) {
                 $this->_applyOneFixture($oneFixture);
             }
         }
@@ -139,7 +164,10 @@ class ApiDataFixture
      */
     protected function _revertFixtures()
     {
-        foreach ($this->_appliedFixtures as $fixture) {
+        $this->fixtureManager->rollbackAll();
+        Bootstrap::getObjectManager()->removeSharedInstance(\Magento\TestFramework\Fixture\Manager::class);
+
+        foreach ($this->appliedFixtures as $fixture) {
             if (is_callable($fixture)) {
                 $fixture[1] .= 'Rollback';
                 if (is_callable($fixture)) {
@@ -157,6 +185,24 @@ class ApiDataFixture
                 }
             }
         }
-        $this->_appliedFixtures = [];
+        $this->appliedFixtures = [];
+    }
+
+    /**
+     * @param string $fixtureName
+     * @return null|\Magento\TestFramework\Fixture\FixtureInterface
+     */
+    private function getFixtureObject(string $fixtureName)
+    {
+        try {
+            $fixture = Bootstrap::getObjectManager()->get($fixtureName);
+        } catch (\Exception $exception) {
+            return null;
+        }
+
+        if ($fixture instanceof \Magento\TestFramework\Fixture\FixtureInterface) {
+            return $fixture;
+        }
+        return null;
     }
 }
