@@ -79,7 +79,6 @@ class GuestValidationTest extends \PHPUnit\Framework\TestCase
      *
      * @magentoConfigFixture current_store payment/substitution/active 1
      * @magentoConfigFixture default_store checkout/options/enable_agreements 1
-     * @magentoDataFixture Magento/CheckoutAgreements/_files/multi_agreements_active_with_text.php
      * @magentoAppArea frontend
      * @magentoAppIsolation enabled
      * @magentoDataFixture Magento/Catalog/_files/product_simple.php
@@ -87,6 +86,7 @@ class GuestValidationTest extends \PHPUnit\Framework\TestCase
      * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      * @dataProvider dataProvider
      * @param string[] $agreementNames
+     * @magentoDataFixture \Magento\CheckoutAgreements\Fixtures\MultiAgreementsActiveWithText
      */
     public function testBeforeSavePaymentInformationAndPlaceOrder($agreementNames)
     {

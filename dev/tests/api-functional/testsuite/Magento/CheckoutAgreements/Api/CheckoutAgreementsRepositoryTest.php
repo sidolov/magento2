@@ -49,8 +49,8 @@ class CheckoutAgreementsRepositoryTest extends WebapiAbstract
     }
 
     /**
-     * @magentoApiDataFixture Magento/CheckoutAgreements/_files/agreement_active_with_html_content.php
-     * @magentoApiDataFixture Magento/CheckoutAgreements/_files/agreement_inactive_with_text_content.php
+     * @magentoApiDataFixture Magento\CheckoutAgreements\Fixtures\AgreementActiveWithHtmlContent
+     * @magentoApiDataFixture Magento\CheckoutAgreements\Fixtures\AgreementInactiveWithTextContent
      */
     public function testGetListReturnsEmptyListIfCheckoutAgreementsAreDisabledOnFrontend()
     {
@@ -60,8 +60,8 @@ class CheckoutAgreementsRepositoryTest extends WebapiAbstract
     }
 
     /**
-     * @magentoApiDataFixture Magento/CheckoutAgreements/_files/agreement_active_with_html_content.php
-     * @magentoApiDataFixture Magento/CheckoutAgreements/_files/agreement_inactive_with_text_content.php
+     * @magentoApiDataFixture Magento\CheckoutAgreements\Fixtures\AgreementActiveWithHtmlContent
+     * @magentoApiDataFixture Magento\CheckoutAgreements\Fixtures\AgreementInactiveWithTextContent
      */
     public function testGetListReturnsTheListOfActiveCheckoutAgreements()
     {
