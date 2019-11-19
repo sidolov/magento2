@@ -8,8 +8,11 @@ declare(strict_types=1);
 namespace Magento\InventoryInStorePickup\Model;
 
 use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\InventoryInStorePickup\Model\Order\AddCommentToOrder;
 use Magento\InventoryInStorePickup\Model\Order\Email\ReadyForPickupNotifier;
+use Magento\InventoryInStorePickupApi\Api\Data\OperationResultInterface;
+use Magento\InventoryInStorePickupApi\Api\Data\OperationResultInterfaceFactory;
 use Magento\InventoryInStorePickupApi\Api\IsOrderReadyForPickupInterface;
 use Magento\InventoryInStorePickupApi\Api\NotifyOrderIsReadyForPickupInterface;
 use Magento\Sales\Api\Data\OrderInterface;
@@ -60,6 +63,11 @@ class NotifyOrderIsReadyForPickup implements NotifyOrderIsReadyForPickupInterfac
     private $addCommentToOrder;
 
     /**
+     * @var OperationResultInterfaceFactory
+     */
+    private $operationResultFactory;
+
+    /**
      * @param IsOrderReadyForPickupInterface $isOrderReadyForPickup
      * @param ShipOrderInterface $shipOrder
      * @param ReadyForPickupNotifier $emailNotifier
@@ -67,6 +75,7 @@ class NotifyOrderIsReadyForPickup implements NotifyOrderIsReadyForPickupInterfac
      * @param ShipmentCreationArgumentsInterfaceFactory $shipmentArgumentsFactory
      * @param ShipmentCreationArgumentsExtensionInterfaceFactory $argumentExtensionFactory
      * @param AddCommentToOrder $addCommentToOrder
+     * @param OperationResultInterfaceFactory $operationResultFactory
      */
     public function __construct(
         IsOrderReadyForPickupInterface $isOrderReadyForPickup,
@@ -75,7 +84,8 @@ class NotifyOrderIsReadyForPickup implements NotifyOrderIsReadyForPickupInterfac
         OrderRepositoryInterface $orderRepository,
         ShipmentCreationArgumentsInterfaceFactory $shipmentArgumentsFactory,
         ShipmentCreationArgumentsExtensionInterfaceFactory $argumentExtensionFactory,
-        AddCommentToOrder $addCommentToOrder
+        AddCommentToOrder $addCommentToOrder,
+        OperationResultInterfaceFactory $operationResultFactory
     ) {
         $this->isOrderReadyForPickup = $isOrderReadyForPickup;
         $this->shipOrder = $shipOrder;
@@ -84,6 +94,7 @@ class NotifyOrderIsReadyForPickup implements NotifyOrderIsReadyForPickupInterfac
         $this->shipmentArgumentsFactory = $shipmentArgumentsFactory;
         $this->argumentExtensionFactory = $argumentExtensionFactory;
         $this->addCommentToOrder = $addCommentToOrder;
+        $this->operationResultFactory = $operationResultFactory;
     }
 
     /**
@@ -94,27 +105,59 @@ class NotifyOrderIsReadyForPickup implements NotifyOrderIsReadyForPickupInterfac
      *
      * @inheritDoc
      */
-    public function execute(int $orderId): void
+    public function execute(array $orderIds): OperationResultInterface
     {
-        if (!$this->isOrderReadyForPickup->execute($orderId)) {
-            throw new LocalizedException(__('The order is not ready for pickup'));
+        $operationResult = $this->isOrderReadyForPickup->execute($orderIds);
+
+        $success = $operationResult->getSucceeded();
+        $errors = $operationResult->getFailed();
+        foreach ($operationResult->getSucceeded() as $orderId) {
+            try {
+                $order = $this->orderRepository->get($orderId);
+            } catch (NoSuchEntityException $exception) {
+                $errors[] = [
+                    'order_id' => $orderId,
+                    'message' => $exception->getMessage()
+                ];
+                continue;
+            }
+
+            if (!$this->emailNotifier->notify($order)) {
+                $errors[] = [
+                    'order_id' => $orderId,
+                    'message' => __('Cannot notify customer via email.')
+                ];
+                continue;
+            }
+
+            try {
+                $this->shipOrder->execute(
+                    $orderId,
+                    [],
+                    false,
+                    false,
+                    null,
+                    [],
+                    [],
+                    $this->getShipmentArguments($order)
+                );
+                $this->addCommentToOrder->execute($order);
+            } catch (LocalizedException $exception) {
+                $errors[] = [
+                    'order_id' => $orderId,
+                    'message' => $exception->getMessage()
+                ];
+                continue;
+            }
+            $success[] = $orderId;
         }
 
-        $order = $this->orderRepository->get($orderId);
-
-        /** @noinspection PhpParamsInspection */
-        $this->emailNotifier->notify($order);
-        $this->shipOrder->execute(
-            $orderId,
-            [],
-            false,
-            false,
-            null,
-            [],
-            [],
-            $this->getShipmentArguments($order)
+        return $this->operationResultFactory->create(
+            [
+                'succeeded' => $success,
+                'failed' => $errors
+            ]
         );
-        $this->addCommentToOrder->execute($order);
     }
 
     /**

@@ -44,7 +44,7 @@ class HideEditLink
     public function afterGetAddressEditLink(Info $subject, string $result, Address $address): string
     {
         if ($address->getAddressType() === self::TYPE_SHIPPING) {
-            if ($this->isStorePickupOrder->execute((int)$address->getOrder()->getEntityId())) {
+            if ($this->isStorePickupOrder->execute([(int)$address->getOrder()->getEntityId()])) {
                 return '';
             }
         }

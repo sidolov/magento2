@@ -9,6 +9,7 @@ namespace Magento\InventoryInStorePickupApi\Api;
 
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\InventoryInStorePickupApi\Api\Data\OperationResultInterface;
 
 /**
  * Send an email to the customer that order is ready to be picked up.
@@ -20,10 +21,11 @@ interface NotifyOrderIsReadyForPickupInterface
     /**
      * Notify customer that the order is ready for pickup.
      *
-     * @param int $orderId
+     * @param int[] $orderIds
      *
+     * @return OperationResultInterface
      * @throws NoSuchEntityException
      * @throws LocalizedException
      */
-    public function execute(int $orderId): void;
+    public function execute(array $orderIds) : OperationResultInterface;
 }

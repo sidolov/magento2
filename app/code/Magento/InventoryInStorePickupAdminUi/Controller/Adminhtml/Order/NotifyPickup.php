@@ -80,7 +80,7 @@ class NotifyPickup extends Action implements HttpGetActionInterface
         }
 
         try {
-            $this->notifyOrderIsReadyForPickup->execute((int)$order->getEntityId());
+            $this->notifyOrderIsReadyForPickup->execute([(int)$order->getEntityId()]);
             if ($order->getEmailSent()) {
                 $this->messageManager->addSuccessMessage(__('The customer has been notified and shipment created.'));
             } else {

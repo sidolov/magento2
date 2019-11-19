@@ -101,4 +101,5 @@
             </argument>
         </arguments>
     </virtualType>
+    <preference for="Magento\InventoryInStorePickupApi\Api\Data\OperationResultInterface" type="Magento\InventoryInStorePickup\OperationResult" />
 </config>
